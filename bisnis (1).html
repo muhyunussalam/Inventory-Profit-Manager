@@ -1,0 +1,192 @@
+<!DOCTYPE html><html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventory & Profit Manager</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9fafb; margin: 0; padding: 20px; }
+    h1 { font-size: 24px; margin-bottom: 10px; }
+    h2 { margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f3f4f6; font-size: 14px; }
+    td { font-size: 14px; }
+    .card { background: #fff; padding: 16px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+    .form-group { margin-bottom: 10px; }
+    label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; }
+    input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-secondary { background: #e5e7eb; }
+    .btn-success { background: #16a34a; color: white; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-top: 20px; }
+    .stat { background: #f3f4f6; padding: 10px; border-radius: 6px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Inventory & Profit Manager</h1>
+  <p style="font-size:13px;color:#555">Kelola barang, stok, dan hitung keuntungan di luar modal. Data tersimpan otomatis di LocalStorage.</p>  <div class="grid">
+    <div class="card">
+      <h2 id="formTitle">Tambah Barang</h2>
+      <form id="itemForm">
+        <input type="hidden" id="itemId">
+        <div class="form-group">
+          <label>Nama Barang</label>
+          <input id="name" required>
+        </div>
+        <div class="form-group">
+          <label>Modal (cost)</label>
+          <input type="number" id="cost" step="0.01" required>
+        </div>
+        <div class="form-group">
+          <label>Harga Jual</label>
+          <input type="number" id="price" step="0.01" required>
+        </div>
+        <div class="form-group">
+          <label>Stok</label>
+          <input type="number" id="stock" required>
+        </div>
+        <div class="form-group">
+          <button type="submit" class="btn-primary">Tambah</button>
+          <button type="button" id="resetBtn" class="btn-secondary">Reset</button>
+        </div>
+        <div class="form-group">
+          <label>Jumlah jual cepat</label>
+          <input type="number" id="sellQty" value="1" min="1">
+        </div>
+      </form>
+    </div><div class="card">
+  <h2>Daftar Barang</h2>
+  <input id="filter" placeholder="Cari..." style="margin-bottom:10px;">
+  <button id="resetAll" class="btn-danger" style="margin-bottom:10px">Hapus Semua Data</button>
+  <table id="itemTable">
+    <thead>
+      <tr>
+        <th>Nama</th>
+        <th>Modal</th>
+        <th>Harga</th>
+        <th>Stok</th>
+        <th>Untung/Unit</th>
+        <th>Aksi</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="stats">
+    <div class="stat">Total Nilai Modal: <b id="totalModal">0</b></div>
+    <div class="stat">Total Potensial: <b id="totalPotential">0</b></div>
+    <div class="stat">Pendapatan: <b id="totalRevenue">0</b></div>
+    <div class="stat">Keuntungan: <b id="totalProfit">0</b></div>
+  </div>
+
+  <h3 style="margin-top:20px">Riwayat Transaksi</h3>
+  <table id="txTable">
+    <thead>
+      <tr>
+        <th>Waktu</th><th>Barang</th><th>Qty</th><th>Pendapatan</th><th>Modal</th><th>Profit</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+  </div>  <script>
+    const itemForm = document.getElementById('itemForm');
+    const nameInput = document.getElementById('name');
+    const costInput = document.getElementById('cost');
+    const priceInput = document.getElementById('price');
+    const stockInput = document.getElementById('stock');
+    const itemIdInput = document.getElementById('itemId');
+    const filterInput = document.getElementById('filter');
+    const sellQtyInput = document.getElementById('sellQty');
+
+    let items = JSON.parse(localStorage.getItem('items')||'[]');
+    let transactions = JSON.parse(localStorage.getItem('transactions')||'[]');
+
+    function saveData(){
+      localStorage.setItem('items', JSON.stringify(items));
+      localStorage.setItem('transactions', JSON.stringify(transactions));
+    }
+
+    function render(){
+      const tbody = document.querySelector('#itemTable tbody');
+      tbody.innerHTML = '';
+      const filter = filterInput.value.toLowerCase();
+      items.filter(it=>it.name.toLowerCase().includes(filter)).forEach(it=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${it.name}</td><td>${it.cost}</td><td>${it.price}</td><td>${it.stock}</td><td>${it.price-it.cost}</td>`+
+        `<td><button class='btn-secondary' onclick='editItem("${it.id}")'>Edit</button> `+
+        `<button class='btn-danger' onclick='deleteItem("${it.id}")'>Hapus</button> `+
+        `<button class='btn-success' onclick='sellItem("${it.id}")'>Jual</button></td>`;
+        tbody.appendChild(tr);
+      });
+
+      // stats
+      document.getElementById('totalModal').innerText = items.reduce((s,it)=>s+it.cost*it.stock,0);
+      document.getElementById('totalPotential').innerText = items.reduce((s,it)=>s+it.price*it.stock,0);
+      document.getElementById('totalRevenue').innerText = transactions.reduce((s,t)=>s+t.revenue,0);
+      document.getElementById('totalProfit').innerText = transactions.reduce((s,t)=>s+t.profit,0);
+
+      // tx
+      const txbody = document.querySelector('#txTable tbody');
+      txbody.innerHTML='';
+      transactions.forEach(t=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${new Date(t.date).toLocaleString()}</td><td>${t.name}</td><td>${t.qty}</td><td>${t.revenue}</td><td>${t.cost}</td><td>${t.profit}</td>`;
+        txbody.appendChild(tr);
+      });
+      saveData();
+    }
+
+    itemForm.onsubmit = e=>{
+      e.preventDefault();
+      const id = itemIdInput.value;
+      const obj = {
+        id: id || Math.random().toString(36).slice(2,9),
+        name: nameInput.value,
+        cost: Number(costInput.value),
+        price: Number(priceInput.value),
+        stock: Number(stockInput.value)
+      };
+      if(id){
+        items = items.map(it=> it.id===id? obj:it);
+      } else {
+        items.unshift(obj);
+      }
+      itemForm.reset();
+      itemIdInput.value='';
+      document.getElementById('formTitle').innerText='Tambah Barang';
+      render();
+    }
+
+    document.getElementById('resetBtn').onclick = ()=>{ itemForm.reset(); itemIdInput.value=''; document.getElementById('formTitle').innerText='Tambah Barang'; }
+    document.getElementById('resetAll').onclick = ()=>{ if(confirm('Hapus semua data?')){ items=[]; transactions=[]; render(); } }
+
+    window.editItem = function(id){
+      const it = items.find(x=>x.id===id);
+      nameInput.value=it.name; costInput.value=it.cost; priceInput.value=it.price; stockInput.value=it.stock; itemIdInput.value=it.id;
+      document.getElementById('formTitle').innerText='Edit Barang';
+    }
+
+    window.deleteItem = function(id){ if(confirm('Hapus item ini?')){ items=items.filter(it=>it.id!==id); transactions=transactions.filter(t=>t.itemId!==id); render(); } }
+
+    window.sellItem = function(id){
+      const qty = Number(sellQtyInput.value)||1;
+      const it = items.find(x=>x.id===id);
+      if(qty>it.stock) return alert('Stok tidak cukup');
+      it.stock -= qty;
+      const revenue=it.price*qty;
+      const cost=it.cost*qty;
+      const profit=revenue-cost;
+      transactions.unshift({id:Math.random().toString(36).slice(2,9), itemId:id, name:it.name, qty,revenue,cost,profit,date:new Date().toISOString()});
+      render();
+    }
+
+    filterInput.oninput=render;
+
+    render();
+  </script></body>
+</html>
