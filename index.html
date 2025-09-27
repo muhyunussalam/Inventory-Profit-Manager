@@ -97,7 +97,7 @@
 <script>
   const supabaseUrl = "https://fncnzeojvvyoiwxaqnom.supabase.co";
   const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuY256ZW9qdnZ5b2l3eGFxbm9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwNTgyMzEsImV4cCI6MjA3MjYzNDIzMX0.QF6HbH4r5bNM6zb5z8iTKDjTM7yKgiC7hNJoRmcU4MY";
-  const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+  const client = supabase.createClient(supabaseUrl, supabaseKey);
 
   const itemForm = document.getElementById('itemForm');
   const nameInput = document.getElementById('name');
@@ -112,8 +112,8 @@
   let transactions = [];
 
   async function loadData() {
-    const { data: itemsData, error: err1 } = await supabase.from('items').select('*');
-    const { data: txData, error: err2 } = await supabase.from('transactions').select('*').order('date', { ascending: false });
+    const { data: itemsData, error: err1 } = await client.from('items').select('*');
+    const { data: txData, error: err2 } = await client.from('transactions').select('*').order('date', { ascending: false });
 
     if (err1) console.error(err1);
     if (err2) console.error(err2);
@@ -124,22 +124,22 @@
   }
 
   async function addItem(obj) {
-    const { error } = await supabase.from('items').insert([obj]);
+    const { error } = await client.from('items').insert([obj]);
     if (error) console.error(error);
   }
 
   async function updateItem(obj) {
-    const { error } = await supabase.from('items').update(obj).eq('id', obj.id);
+    const { error } = await client.from('items').update(obj).eq('id', obj.id);
     if (error) console.error(error);
   }
 
   async function deleteItemDB(id) {
-    await supabase.from('transactions').delete().eq('itemId', id);
-    await supabase.from('items').delete().eq('id', id);
+    await client.from('transactions').delete().eq('itemId', id);
+    await client.from('items').delete().eq('id', id);
   }
 
   async function addTransaction(tx) {
-    const { error } = await supabase.from('transactions').insert([tx]);
+    const { error } = await client.from('transactions').insert([tx]);
     if (error) console.error(error);
   }
 
@@ -204,8 +204,8 @@
 
   document.getElementById('resetAll').onclick = async () => {
     if (confirm('Hapus semua data?')) {
-      await supabase.from('transactions').delete().neq('id', '');
-      await supabase.from('items').delete().neq('id', '');
+      await client.from('transactions').delete().neq('id', '');
+      await client.from('items').delete().neq('id', '');
       items = [];
       transactions = [];
       render();
